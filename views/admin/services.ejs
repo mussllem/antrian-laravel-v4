@@ -2,60 +2,234 @@
 <%- include('../layouts/topbar', { active: 'services' }) %>
 
 <div class="wrap">
-    <h1>Kelola Layanan</h1>
-    <% if (typeof status !== 'undefined' && status) { %><div class="flash"><%= status %></div><% } %>
-
-    <div class="card">
-        <h3>Tambah Layanan</h3>
-        <form method="POST" action="/admin/services">
-            <div class="row">
-                <div class="col"><label>Nama Layanan</label><input name="name" required placeholder="Layanan Umum"></div>
-                <div class="col"><label>Awalan (prefix)</label><input name="prefix" maxlength="5" required placeholder="A"></div>
-                <div class="col"><label>Urutan</label><input name="sort_order" type="number" value="0"></div>
-            </div>
-            <label>Deskripsi</label><input name="description" placeholder="Pendaftaran & informasi">
-            <label style="display:flex;gap:6px;align-items:center;margin-top:10px;color:var(--text)">
-                <input type="checkbox" name="is_active" value="1" checked style="width:auto"> Aktif
-            </label>
-            <button class="btn green" style="margin-top:12px">Simpan</button>
-        </form>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+        <h1 style="margin:0">Kelola Layanan</h1>
+        <button type="button" class="btn green" id="btnOpenAddModal">
+            + Tambah Layanan
+        </button>
     </div>
 
+    <div id="flashNotice" class="flash" style="display:none"></div>
+    <% if (typeof status !== 'undefined' && status) { %>
+        <div class="flash"><%= status %></div>
+    <% } %>
+
     <div class="card">
-        <h3>Daftar Layanan</h3>
-        <table>
-            <thead><tr><th>Nama</th><th>Prefix</th><th>Deskripsi</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-            <% if (services && services.length > 0) { %>
-                <% services.forEach(function(s) { %>
+        <div style="overflow-x:auto">
+            <table id="servicesTable" class="dataTable display" style="width:100%">
+                <thead>
                     <tr>
-                        <td>
-                            <form method="POST" action="/admin/services/<%= s.id %>?_method=PUT">
-                                <input name="name" value="<%= s.name %>">
-                        </td>
-                        <td><input name="prefix" value="<%= s.prefix %>" maxlength="5" style="width:70px"></td>
-                        <td><input name="description" value="<%= s.description || '' %>"></td>
-                        <td>
-                            <label style="display:flex;gap:4px;align-items:center;color:var(--text)">
-                                <input type="checkbox" name="is_active" value="1" style="width:auto" <%= s.is_active ? 'checked' : '' %>> Aktif
-                            </label>
-                        </td>
-                        <td style="white-space:nowrap">
-                                <button class="btn" style="padding:6px 10px">Update</button>
-                            </form>
-                            <form method="POST" action="/admin/services/<%= s.id %>?_method=DELETE" style="display:inline"
-                                  onsubmit="return confirm('Hapus layanan ini?')">
-                                <button class="btn red" style="padding:6px 10px">Hapus</button>
-                            </form>
-                        </td>
+                        <th>Nama Layanan</th>
+                        <th style="width:80px">Awalan (Prefix)</th>
+                        <th>Deskripsi</th>
+                        <th style="width:90px">Status</th>
+                        <th style="width:130px;text-align:right">Aksi</th>
                     </tr>
-                <% }); %>
-            <% } else { %>
-                <tr><td colspan="5">Belum ada layanan.</td></tr>
-            <% } %>
-            </tbody>
-        </table>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-<%- include('../layouts/footer') %>
+<!-- Modal Form Layanan (Tambah & Edit) -->
+<div class="modal-overlay" id="serviceModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 id="modalTitle">Tambah Layanan</h3>
+            <button type="button" class="modal-close" id="btnCloseModal" aria-label="Tutup">&times;</button>
+        </div>
+        <form id="serviceForm">
+            <div class="modal-body">
+                <input type="hidden" name="service_id" id="service_id" value="">
+                
+                <div class="row">
+                    <div class="col">
+                        <label for="name">Nama Layanan <span style="color:var(--danger)">*</span></label>
+                        <input name="name" id="name" required placeholder="Contoh: Layanan Umum">
+                    </div>
+                    <div class="col" style="max-width:140px">
+                        <label for="prefix">Awalan (Prefix) <span style="color:var(--danger)">*</span></label>
+                        <input name="prefix" id="prefix" maxlength="5" required placeholder="A" style="text-transform:uppercase">
+                    </div>
+                </div>
+
+                <div style="margin-top:10px">
+                    <label for="sort_order">Urutan Tampilan</label>
+                    <input name="sort_order" id="sort_order" type="number" value="0">
+                </div>
+
+                <div style="margin-top:10px">
+                    <label for="description">Deskripsi Layanan</label>
+                    <input name="description" id="description" placeholder="Pendaftaran & informasi umum">
+                </div>
+
+                <label style="display:flex;gap:8px;align-items:center;margin-top:14px;color:var(--text);cursor:pointer">
+                    <input type="checkbox" name="is_active" id="is_active" value="1" checked style="width:auto"> 
+                    <span>Status Aktif</span>
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn gray" id="btnCancelModal">Batal</button>
+                <button type="submit" class="btn green" id="btnSaveService">Simpan Layanan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        var modal = $('#serviceModal');
+        var form = $('#serviceForm');
+        var flashNotice = $('#flashNotice');
+
+        function showFlash(msg, isErr) {
+            flashNotice.text(msg).css('display', 'block');
+            if (isErr) {
+                flashNotice.css({'background':'#7f1d1d', 'border-color':'var(--danger)'});
+            } else {
+                flashNotice.css({'background':'var(--flash-bg)', 'border-color':'var(--accent)'});
+            }
+            setTimeout(function() { flashNotice.fadeOut(); }, 4000);
+        }
+
+        // Inisialisasi DataTable Server-Side
+        var table = $('#servicesTable').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: '/admin/services/dt',
+                type: 'GET'
+            },
+            language: {
+                search: "Cari:",
+                lengthMenu: "Tampilkan _MENU_ data",
+                info: "Menampilkan _START_ s/d _END_ dari _TOTAL_ layanan",
+                infoEmpty: "Menampilkan 0 dari 0 layanan",
+                zeroRecords: "Tidak ada layanan ditemukan",
+                paginate: {
+                    first: "Awal",
+                    last: "Akhir",
+                    next: "Lanjut",
+                    previous: "Sebelum"
+                },
+                processing: "Memuat data dari server..."
+            },
+            columns: [
+                { data: 'name' },
+                { 
+                    data: 'prefix',
+                    render: function(val) {
+                        return '<span class="pill" style="font-weight:700;font-size:13px">' + val + '</span>';
+                    }
+                },
+                { 
+                    data: 'description',
+                    render: function(val) {
+                        return val || '<span style="color:var(--muted)">-</span>';
+                    }
+                },
+                { 
+                    data: 'is_active',
+                    render: function(val) {
+                        return val 
+                            ? '<span class="pill on">Aktif</span>' 
+                            : '<span class="pill off">Non-Aktif</span>';
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    className: 'text-right',
+                    render: function(data, type, row) {
+                        var jsonStr = encodeURIComponent(JSON.stringify(row));
+                        return '<button class="btn btn-edit" data-item="' + jsonStr + '" style="padding:5px 9px;font-size:12px;margin-right:4px">Edit</button>' +
+                               '<button class="btn red btn-delete" data-id="' + row.id + '" data-name="' + row.name + '" style="padding:5px 9px;font-size:12px">Hapus</button>';
+                    }
+                }
+            ]
+        });
+
+        // Buka Modal Tambah
+        $('#btnOpenAddModal').on('click', function() {
+            form[0].reset();
+            $('#service_id').val('');
+            $('#modalTitle').text('Tambah Layanan');
+            $('#is_active').prop('checked', true);
+            modal.addClass('active');
+        });
+
+        // Buka Modal Edit
+        $('#servicesTable').on('click', '.btn-edit', function() {
+            var raw = $(this).data('item');
+            var item = JSON.parse(decodeURIComponent(raw));
+            $('#service_id').val(item.id);
+            $('#name').val(item.name);
+            $('#prefix').val(item.prefix);
+            $('#sort_order').val(item.sort_order || 0);
+            $('#description').val(item.description || '');
+            $('#is_active').prop('checked', !!item.is_active);
+
+            $('#modalTitle').text('Edit ' + item.name);
+            modal.addClass('active');
+        });
+
+        // Tutup Modal
+        $('#btnCloseModal, #btnCancelModal').on('click', function() {
+            modal.removeClass('active');
+        });
+        modal.on('click', function(e) {
+            if (e.target === this) modal.removeClass('active');
+        });
+
+        // Submit Form via AJAX
+        form.on('submit', function(e) {
+            e.preventDefault();
+            var id = $('#service_id').val();
+            var isEdit = !!id;
+            var url = isEdit ? ('/admin/services/' + id + '?_method=PUT') : '/admin/services';
+            var formData = form.serialize();
+
+            $('#btnSaveService').prop('disabled', true).text('Menyimpan...');
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: formData,
+                dataType: 'json',
+                success: function(res) {
+                    $('#btnSaveService').prop('disabled', false).text('Simpan Layanan');
+                    modal.removeClass('active');
+                    showFlash(res.message || 'Layanan berhasil disimpan!');
+                    table.ajax.reload(null, false);
+                },
+                error: function(err) {
+                    $('#btnSaveService').prop('disabled', false).text('Simpan Layanan');
+                    showFlash('Gagal menyimpan layanan: ' + (err.responseJSON?.message || 'Terjadi kesalahan server'), true);
+                }
+            });
+        });
+
+        // Hapus Layanan via AJAX
+        $('#servicesTable').on('click', '.btn-delete', function() {
+            var id = $(this).data('id');
+            var name = $(this).data('name');
+            if (!confirm('Hapus ' + name + '?')) return;
+
+            $.ajax({
+                url: '/admin/services/' + id + '?_method=DELETE',
+                type: 'POST',
+                dataType: 'json',
+                success: function(res) {
+                    showFlash(res.message || 'Layanan berhasil dihapus!');
+                    table.ajax.reload(null, false);
+                },
+                error: function() {
+                    showFlash('Gagal menghapus layanan.', true);
+                }
+            });
+        });
+    });
+</script>
+
+<%- include('../layouts/admin_footer') %>

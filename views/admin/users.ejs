@@ -1,0 +1,246 @@
+<%- include('../layouts/header', { title: 'Admin — Manajemen User' }) %>
+<%- include('../layouts/topbar', { active: 'users' }) %>
+
+<div class="wrap">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+        <div>
+            <h1 style="margin:0">Manajemen Pengguna (User)</h1>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px">Kelola akun administrator dan operator loket sistem antrian</div>
+        </div>
+        <button type="button" class="btn green" id="btnOpenAddModal">
+            + Tambah User
+        </button>
+    </div>
+
+    <div id="flashNotice" class="flash" style="display:none"></div>
+    <% if (typeof status !== 'undefined' && status) { %>
+        <div class="flash"><%= status %></div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+        <div class="flash" style="background:var(--pill-off);border-color:var(--danger)"><%= error %></div>
+    <% } %>
+
+    <div class="card">
+        <div style="overflow-x:auto">
+            <table id="usersTable" class="dataTable display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th style="width:60px">ID</th>
+                        <th>Nama Pengguna</th>
+                        <th>Email Login</th>
+                        <th style="width:120px">Peran (Role)</th>
+                        <th style="width:140px;text-align:right">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Form User (Tambah & Edit) -->
+<div class="modal-overlay" id="userModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 id="modalTitle">Tambah Pengguna</h3>
+            <button type="button" class="modal-close" id="btnCloseModal" aria-label="Tutup">&times;</button>
+        </div>
+        <form id="userForm">
+            <div class="modal-body">
+                <input type="hidden" name="user_id" id="user_id" value="">
+
+                <div>
+                    <label for="name">Nama Lengkap <span style="color:var(--danger)">*</span></label>
+                    <input name="name" id="name" required placeholder="Contoh: Budi Santoso">
+                </div>
+
+                <div style="margin-top:12px">
+                    <label for="email">Alamat Email <span style="color:var(--danger)">*</span></label>
+                    <input name="email" id="email" type="email" required placeholder="nama@instansi.test">
+                </div>
+
+                <div style="margin-top:12px">
+                    <label for="password">
+                        Kata Sandi / Password 
+                        <span id="passwordRequired" style="color:var(--danger)">*</span>
+                        <span id="passwordNote" style="display:none;color:var(--muted);font-size:11px">(Kosongkan jika tidak ingin mengubah password)</span>
+                    </label>
+                    <input name="password" id="password" type="password" placeholder="Minimal 6 karakter" autocomplete="new-password">
+                </div>
+
+                <div style="margin-top:12px">
+                    <label for="role">Peran / Hak Akses <span style="color:var(--danger)">*</span></label>
+                    <select name="role" id="role" required>
+                        <option value="operator">Operator (Hanya Layar Panggil & Loket)</option>
+                        <option value="admin">Administrator (Semua Akses & Pengaturan)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn gray" id="btnCancelModal">Batal</button>
+                <button type="submit" class="btn green" id="btnSaveUser">Simpan User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        var modal = $('#userModal');
+        var form = $('#userForm');
+        var flashNotice = $('#flashNotice');
+
+        function showFlash(msg, isErr) {
+            flashNotice.text(msg).css('display', 'block');
+            if (isErr) {
+                flashNotice.css({'background':'#7f1d1d', 'border-color':'var(--danger)'});
+            } else {
+                flashNotice.css({'background':'var(--flash-bg)', 'border-color':'var(--accent)'});
+            }
+            setTimeout(function() { flashNotice.fadeOut(); }, 4000);
+        }
+
+        // Inisialisasi DataTable Server-Side
+        var table = $('#usersTable').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: '/admin/users/dt',
+                type: 'GET'
+            },
+            language: {
+                search: "Cari Pengguna:",
+                lengthMenu: "Tampilkan _MENU_ data",
+                info: "Menampilkan _START_ s/d _END_ dari _TOTAL_ user",
+                infoEmpty: "Menampilkan 0 user",
+                zeroRecords: "Tidak ada data user ditemukan",
+                paginate: {
+                    first: "Awal",
+                    last: "Akhir",
+                    next: "Lanjut",
+                    previous: "Sebelum"
+                },
+                processing: "Memuat data user dari server..."
+            },
+            columns: [
+                { data: 'id' },
+                { 
+                    data: 'name',
+                    render: function(val, type, row) {
+                        return '<div style="font-weight:700">' + val + '</div>';
+                    }
+                },
+                { 
+                    data: 'email',
+                    render: function(val) {
+                        return '<span style="color:var(--muted)">' + val + '</span>';
+                    }
+                },
+                { 
+                    data: 'role',
+                    render: function(val) {
+                        if (val === 'admin') {
+                            return '<span class="pill on" style="font-weight:700">Administrator</span>';
+                        }
+                        return '<span class="pill" style="background:#3b82f6;color:#fff;font-weight:600">Operator</span>';
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    className: 'text-right',
+                    render: function(data, type, row) {
+                        var jsonStr = encodeURIComponent(JSON.stringify(row));
+                        return '<button class="btn btn-edit" data-item="' + jsonStr + '" style="padding:5px 9px;font-size:12px;margin-right:4px">Edit</button>' +
+                               '<button class="btn red btn-delete" data-id="' + row.id + '" data-name="' + row.name + '" style="padding:5px 9px;font-size:12px">Hapus</button>';
+                    }
+                }
+            ]
+        });
+
+        // Buka Modal Tambah User
+        $('#btnOpenAddModal').on('click', function() {
+            form[0].reset();
+            $('#user_id').val('');
+            $('#modalTitle').text('Tambah Pengguna Baru');
+            $('#password').prop('required', true);
+            $('#passwordRequired').show();
+            $('#passwordNote').hide();
+            modal.addClass('active');
+        });
+
+        // Buka Modal Edit User
+        $('#usersTable').on('click', '.btn-edit', function() {
+            var raw = $(this).data('item');
+            var item = JSON.parse(decodeURIComponent(raw));
+            $('#user_id').val(item.id);
+            $('#name').val(item.name);
+            $('#email').val(item.email);
+            $('#password').val('').prop('required', false);
+            $('#passwordRequired').hide();
+            $('#passwordNote').show();
+            $('#role').val(item.role || 'operator');
+
+            $('#modalTitle').text('Edit Pengguna: ' + item.name);
+            modal.addClass('active');
+        });
+
+        // Tutup Modal
+        $('#btnCloseModal, #btnCancelModal').on('click', function() {
+            modal.removeClass('active');
+        });
+        modal.on('click', function(e) {
+            if (e.target === this) modal.removeClass('active');
+        });
+
+        // Submit Form via AJAX
+        form.on('submit', function(e) {
+            e.preventDefault();
+            var id = $('#user_id').val();
+            var isEdit = !!id;
+            var url = isEdit ? ('/admin/users/' + id + '?_method=PUT') : '/admin/users';
+            var formData = form.serialize();
+
+            $('#btnSaveUser').prop('disabled', true).text('Menyimpan...');
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: formData,
+                dataType: 'json',
+                success: function(res) {
+                    $('#btnSaveUser').prop('disabled', false).text('Simpan User');
+                    modal.removeClass('active');
+                    showFlash(res.message || 'Data user berhasil disimpan!');
+                    table.ajax.reload(null, false);
+                },
+                error: function(err) {
+                    $('#btnSaveUser').prop('disabled', false).text('Simpan User');
+                    showFlash('Gagal menyimpan user: ' + (err.responseJSON?.message || 'Terjadi kesalahan server'), true);
+                }
+            });
+        });
+
+        // Hapus User via AJAX
+        $('#usersTable').on('click', '.btn-delete', function() {
+            var id = $(this).data('id');
+            var name = $(this).data('name');
+            if (!confirm('Yakin ingin menghapus pengguna ' + name + '?')) return;
+
+            $.ajax({
+                url: '/admin/users/' + id + '?_method=DELETE',
+                type: 'POST',
+                dataType: 'json',
+                success: function(res) {
+                    showFlash(res.message || 'User berhasil dihapus!');
+                    table.ajax.reload(null, false);
+                },
+                error: function(err) {
+                    showFlash('Gagal menghapus user: ' + (err.responseJSON?.message || 'Terjadi kesalahan server'), true);
+                }
+            });
+        });
+    });
+</script>
+
+<%- include('../layouts/admin_footer') %>

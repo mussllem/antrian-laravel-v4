@@ -17,6 +17,25 @@
                     apply(cur === 'light' ? 'dark' : 'light');
                 });
             }
+
+            // Mobile sidebar toggle
+            var sidebar = document.getElementById('adminSidebar');
+            var backdrop = document.getElementById('sidebarBackdrop');
+            var btnToggle = document.getElementById('btnToggleSidebar');
+            var btnClose = document.getElementById('btnCloseSidebar');
+
+            function openSidebar() {
+                if (sidebar) sidebar.classList.add('open');
+                if (backdrop) backdrop.classList.add('active');
+            }
+            function closeSidebar() {
+                if (sidebar) sidebar.classList.remove('open');
+                if (backdrop) backdrop.classList.remove('active');
+            }
+
+            if (btnToggle) btnToggle.addEventListener('click', openSidebar);
+            if (btnClose) btnClose.addEventListener('click', closeSidebar);
+            if (backdrop) backdrop.addEventListener('click', closeSidebar);
         })();
     </script>
     <%- typeof extraScripts !== 'undefined' ? extraScripts : '' %>

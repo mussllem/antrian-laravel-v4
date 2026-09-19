@@ -87,6 +87,7 @@ const db = {
   nextTicketId: 1,
   nextServiceId: 4,
   nextCounterId: 4,
+  nextUserId: 4,
 };
 
 // Seed a few initial demo tickets for today
@@ -669,6 +670,67 @@ app.get('/admin/counters', requireAuth, requireRole('admin'), (req, res) => {
   });
 });
 
+// DataTables Server-Side endpoint for Counters
+app.get('/admin/counters/dt', requireAuth, requireRole('admin'), (req, res) => {
+  const draw = parseInt(req.query.draw, 10) || 1;
+  const start = parseInt(req.query.start, 10) || 0;
+  const length = parseInt(req.query.length, 10) || 10;
+  const searchVal = (req.query.search && req.query.search.value) ? req.query.search.value.toLowerCase().trim() : '';
+
+  let list = db.counters.slice();
+  const recordsTotal = list.length;
+
+  if (searchVal) {
+    list = list.filter((c) => {
+      const matchName = (c.name || '').toLowerCase().includes(searchVal);
+      const matchNum = String(c.number || '').includes(searchVal);
+      const svcNames = (c.services || []).map((sid) => {
+        const s = db.services.find((x) => x.id === sid);
+        return s ? s.name.toLowerCase() : '';
+      }).join(' ');
+      return matchName || matchNum || svcNames.includes(searchVal);
+    });
+  }
+
+  // Sorting
+  const orderColIdx = req.query.order && req.query.order[0] ? parseInt(req.query.order[0].column, 10) : 1;
+  const orderDir = req.query.order && req.query.order[0] && req.query.order[0].dir === 'desc' ? -1 : 1;
+
+  list.sort((a, b) => {
+    if (orderColIdx === 0) return (a.name || '').localeCompare(b.name || '') * orderDir;
+    if (orderColIdx === 1) return ((a.number || 0) - (b.number || 0)) * orderDir;
+    if (orderColIdx === 3) return (((a.is_active ? 1 : 0) - (b.is_active ? 1 : 0))) * orderDir;
+    return ((a.sort_order || 0) - (b.sort_order || 0)) * orderDir;
+  });
+
+  const recordsFiltered = list.length;
+  const paged = list.slice(start, start + length);
+
+  const data = paged.map((c) => {
+    const assignedServices = (c.services || []).map((sid) => {
+      const s = db.services.find((item) => item.id === sid);
+      return s ? { id: s.id, name: s.name, prefix: s.prefix } : null;
+    }).filter(Boolean);
+
+    return {
+      id: c.id,
+      name: c.name,
+      number: c.number,
+      sort_order: c.sort_order || 0,
+      services: c.services || [],
+      assigned_services: assignedServices,
+      is_active: !!c.is_active,
+    };
+  });
+
+  res.json({
+    draw,
+    recordsTotal,
+    recordsFiltered,
+    data,
+  });
+});
+
 app.post('/admin/counters', requireAuth, requireRole('admin'), (req, res) => {
   const { name, number, sort_order, is_active } = req.body;
   let serviceIds = req.body.services || [];
@@ -679,16 +741,19 @@ app.post('/admin/counters', requireAuth, requireRole('admin'), (req, res) => {
 
   const newCounter = {
     id: db.nextCounterId++,
-    name: name.trim(),
-    number: parseInt(number, 10) || 1,
+    name: (name || 'Loket Baru').trim(),
+    number: parseInt(number, 10) || (db.counters.length + 1),
     sort_order: parseInt(sort_order, 10) || 0,
     services: servicesParsed,
-    is_active: is_active === '1' || is_active === true,
+    is_active: is_active === '1' || is_active === true || is_active === 'true',
     occupied_by: null,
     occupied_at: null,
   };
   db.counters.push(newCounter);
 
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ success: true, message: 'Loket berhasil ditambahkan.', data: newCounter });
+  }
   res.redirect('/admin/counters?status=' + encodeURIComponent('Loket berhasil ditambahkan.'));
 });
 
@@ -696,15 +761,22 @@ app.put('/admin/counters/:id', requireAuth, requireRole('admin'), (req, res) => 
   const counterId = parseInt(req.params.id, 10);
   const counter = db.counters.find((c) => c.id === counterId);
   if (counter) {
-    const { name, number, is_active } = req.body;
+    const { name, number, sort_order, is_active } = req.body;
     let serviceIds = req.body.services || [];
     if (!Array.isArray(serviceIds)) {
       serviceIds = [serviceIds];
     }
     counter.name = name ? name.trim() : counter.name;
     counter.number = parseInt(number, 10) || counter.number;
+    if (sort_order !== undefined) {
+      counter.sort_order = parseInt(sort_order, 10) || 0;
+    }
     counter.services = serviceIds.map((s) => parseInt(s, 10)).filter((n) => !isNaN(n));
-    counter.is_active = is_active === '1' || is_active === true;
+    counter.is_active = is_active === '1' || is_active === true || is_active === 'true';
+  }
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ success: true, message: 'Loket berhasil diperbarui.', data: counter });
   }
   res.redirect('/admin/counters?status=' + encodeURIComponent('Loket berhasil diperbarui.'));
 });
@@ -714,6 +786,10 @@ app.delete('/admin/counters/:id', requireAuth, requireRole('admin'), (req, res) 
   const idx = db.counters.findIndex((c) => c.id === counterId);
   if (idx !== -1) {
     db.counters.splice(idx, 1);
+  }
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ success: true, message: 'Loket berhasil dihapus.' });
   }
   res.redirect('/admin/counters?status=' + encodeURIComponent('Loket berhasil dihapus.'));
 });
@@ -727,17 +803,62 @@ app.get('/admin/services', requireAuth, requireRole('admin'), (req, res) => {
   });
 });
 
+// DataTables Server-Side endpoint for Services
+app.get('/admin/services/dt', requireAuth, requireRole('admin'), (req, res) => {
+  const draw = parseInt(req.query.draw, 10) || 1;
+  const start = parseInt(req.query.start, 10) || 0;
+  const length = parseInt(req.query.length, 10) || 10;
+  const searchVal = (req.query.search && req.query.search.value) ? req.query.search.value.toLowerCase().trim() : '';
+
+  let list = db.services.slice();
+  const recordsTotal = list.length;
+
+  if (searchVal) {
+    list = list.filter((s) => {
+      const matchName = (s.name || '').toLowerCase().includes(searchVal);
+      const matchPrefix = (s.prefix || '').toLowerCase().includes(searchVal);
+      const matchDesc = (s.description || '').toLowerCase().includes(searchVal);
+      return matchName || matchPrefix || matchDesc;
+    });
+  }
+
+  const orderColIdx = req.query.order && req.query.order[0] ? parseInt(req.query.order[0].column, 10) : 0;
+  const orderDir = req.query.order && req.query.order[0] && req.query.order[0].dir === 'desc' ? -1 : 1;
+
+  list.sort((a, b) => {
+    if (orderColIdx === 0) return (a.name || '').localeCompare(b.name || '') * orderDir;
+    if (orderColIdx === 1) return (a.prefix || '').localeCompare(b.prefix || '') * orderDir;
+    if (orderColIdx === 2) return (a.description || '').localeCompare(b.description || '') * orderDir;
+    if (orderColIdx === 3) return (((a.is_active ? 1 : 0) - (b.is_active ? 1 : 0))) * orderDir;
+    return ((a.sort_order || 0) - (b.sort_order || 0)) * orderDir;
+  });
+
+  const recordsFiltered = list.length;
+  const paged = list.slice(start, start + length);
+
+  res.json({
+    draw,
+    recordsTotal,
+    recordsFiltered,
+    data: paged,
+  });
+});
+
 app.post('/admin/services', requireAuth, requireRole('admin'), (req, res) => {
   const { name, prefix, sort_order, description, is_active } = req.body;
   const newService = {
     id: db.nextServiceId++,
-    name: name.trim(),
+    name: (name || 'Layanan Baru').trim(),
     prefix: (prefix || 'A').toUpperCase().trim(),
     sort_order: parseInt(sort_order, 10) || 0,
     description: (description || '').trim(),
-    is_active: is_active === '1' || is_active === true,
+    is_active: is_active === '1' || is_active === true || is_active === 'true',
   };
   db.services.push(newService);
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ success: true, message: 'Layanan berhasil ditambahkan.', data: newService });
+  }
   res.redirect('/admin/services?status=' + encodeURIComponent('Layanan berhasil ditambahkan.'));
 });
 
@@ -745,11 +866,18 @@ app.put('/admin/services/:id', requireAuth, requireRole('admin'), (req, res) => 
   const serviceId = parseInt(req.params.id, 10);
   const service = db.services.find((s) => s.id === serviceId);
   if (service) {
-    const { name, prefix, description, is_active } = req.body;
+    const { name, prefix, sort_order, description, is_active } = req.body;
     service.name = name ? name.trim() : service.name;
     service.prefix = prefix ? prefix.toUpperCase().trim() : service.prefix;
+    if (sort_order !== undefined) {
+      service.sort_order = parseInt(sort_order, 10) || 0;
+    }
     service.description = description !== undefined ? description.trim() : service.description;
-    service.is_active = is_active === '1' || is_active === true;
+    service.is_active = is_active === '1' || is_active === true || is_active === 'true';
+  }
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ success: true, message: 'Layanan berhasil diperbarui.', data: service });
   }
   res.redirect('/admin/services?status=' + encodeURIComponent('Layanan berhasil diperbarui.'));
 });
@@ -760,7 +888,156 @@ app.delete('/admin/services/:id', requireAuth, requireRole('admin'), (req, res) 
   if (idx !== -1) {
     db.services.splice(idx, 1);
   }
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ success: true, message: 'Layanan berhasil dihapus.' });
+  }
   res.redirect('/admin/services?status=' + encodeURIComponent('Layanan berhasil dihapus.'));
+});
+
+// Admin Users (Manajemen User)
+app.get('/admin/users', requireAuth, requireRole('admin'), (req, res) => {
+  res.render('admin/users', {
+    status: req.query.status || null,
+    error: req.query.error || null,
+  });
+});
+
+// DataTables Server-Side endpoint for Users
+app.get('/admin/users/dt', requireAuth, requireRole('admin'), (req, res) => {
+  const draw = parseInt(req.query.draw, 10) || 1;
+  const start = parseInt(req.query.start, 10) || 0;
+  const length = parseInt(req.query.length, 10) || 10;
+  const searchVal = (req.query.search && req.query.search.value) ? req.query.search.value.toLowerCase().trim() : '';
+
+  let list = db.users.slice();
+  const recordsTotal = list.length;
+
+  if (searchVal) {
+    list = list.filter((u) => {
+      const matchName = (u.name || '').toLowerCase().includes(searchVal);
+      const matchEmail = (u.email || '').toLowerCase().includes(searchVal);
+      const matchRole = (u.role || '').toLowerCase().includes(searchVal);
+      return matchName || matchEmail || matchRole;
+    });
+  }
+
+  const orderColIdx = req.query.order && req.query.order[0] ? parseInt(req.query.order[0].column, 10) : 0;
+  const orderDir = req.query.order && req.query.order[0] && req.query.order[0].dir === 'desc' ? -1 : 1;
+
+  list.sort((a, b) => {
+    if (orderColIdx === 0) return (a.name || '').localeCompare(b.name || '') * orderDir;
+    if (orderColIdx === 1) return (a.email || '').localeCompare(b.email || '') * orderDir;
+    if (orderColIdx === 2) return (a.role || '').localeCompare(b.role || '') * orderDir;
+    return ((a.id || 0) - (b.id || 0)) * orderDir;
+  });
+
+  const recordsFiltered = list.length;
+  const paged = list.slice(start, start + length);
+
+  const data = paged.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+  }));
+
+  res.json({
+    draw,
+    recordsTotal,
+    recordsFiltered,
+    data,
+  });
+});
+
+// Tambah User
+app.post('/admin/users', requireAuth, requireRole('admin'), (req, res) => {
+  const { name, email, password, role } = req.body;
+  if (!name || !email || !password) {
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      return res.status(400).json({ success: false, message: 'Nama, email, dan password wajib diisi.' });
+    }
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Nama, email, dan password wajib diisi.'));
+  }
+
+  const emailTrimmed = email.trim().toLowerCase();
+  const existing = db.users.find((u) => u.email.toLowerCase() === emailTrimmed);
+  if (existing) {
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      return res.status(400).json({ success: false, message: 'Email sudah terdaftar. Gunakan email lain.' });
+    }
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Email sudah terdaftar.'));
+  }
+
+  const newUser = {
+    id: db.nextUserId++,
+    name: name.trim(),
+    email: emailTrimmed,
+    password: password.trim(),
+    role: (role === 'admin' ? 'admin' : 'operator'),
+  };
+  db.users.push(newUser);
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ success: true, message: 'User berhasil ditambahkan.', data: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role } });
+  }
+  res.redirect('/admin/users?status=' + encodeURIComponent('User berhasil ditambahkan.'));
+});
+
+// Edit User
+app.put('/admin/users/:id', requireAuth, requireRole('admin'), (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) {
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      return res.status(404).json({ success: false, message: 'User tidak ditemukan.' });
+    }
+    return res.redirect('/admin/users?error=' + encodeURIComponent('User tidak ditemukan.'));
+  }
+
+  const { name, email, password, role } = req.body;
+  if (email) {
+    const emailTrimmed = email.trim().toLowerCase();
+    const existing = db.users.find((u) => u.email.toLowerCase() === emailTrimmed && u.id !== userId);
+    if (existing) {
+      if (req.xhr || req.headers.accept?.includes('application/json')) {
+        return res.status(400).json({ success: false, message: 'Email sudah digunakan oleh akun lain.' });
+      }
+      return res.redirect('/admin/users?error=' + encodeURIComponent('Email sudah digunakan oleh akun lain.'));
+    }
+    user.email = emailTrimmed;
+  }
+
+  if (name) user.name = name.trim();
+  if (password && password.trim()) user.password = password.trim();
+  if (role) user.role = (role === 'admin' ? 'admin' : 'operator');
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ success: true, message: 'User berhasil diperbarui.', data: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  }
+  res.redirect('/admin/users?status=' + encodeURIComponent('User berhasil diperbarui.'));
+});
+
+// Hapus User
+app.delete('/admin/users/:id', requireAuth, requireRole('admin'), (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  // Lindungi user yang sedang login agar tidak terhapus sendiri
+  if (req.user && req.user.id === userId) {
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      return res.status(400).json({ success: false, message: 'Anda tidak dapat menghapus akun yang sedang aktif digunakan.' });
+    }
+    return res.redirect('/admin/users?error=' + encodeURIComponent('Tidak dapat menghapus akun sendiri.'));
+  }
+
+  const idx = db.users.findIndex((u) => u.id === userId);
+  if (idx !== -1) {
+    db.users.splice(idx, 1);
+  }
+
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    return res.json({ success: true, message: 'User berhasil dihapus.' });
+  }
+  res.redirect('/admin/users?status=' + encodeURIComponent('User berhasil dihapus.'));
 });
 
 // Admin Display Settings
@@ -866,6 +1143,67 @@ app.get('/admin/reports', requireAuth, requireRole('admin'), (req, res) => {
     perService,
     perCounter,
     daily,
+  });
+});
+
+// DataTables Server-Side endpoint for tickets list in reports
+app.get('/admin/reports/dt', requireAuth, requireRole('admin'), (req, res) => {
+  const draw = parseInt(req.query.draw, 10) || 1;
+  const start = parseInt(req.query.start, 10) || 0;
+  const length = parseInt(req.query.length, 10) || 10;
+  const searchVal = (req.query.search && req.query.search.value) ? req.query.search.value.toLowerCase().trim() : '';
+  const from = req.query.from || getTodayString();
+  const to = req.query.to || getTodayString();
+
+  let list = db.tickets.filter((t) => t.queue_date >= from && t.queue_date <= to);
+  const recordsTotal = list.length;
+
+  if (searchVal) {
+    list = list.filter((t) => {
+      const s = db.services.find((item) => item.id === t.service_id);
+      const c = db.counters.find((item) => item.id === t.counter_id);
+      const matchCode = (t.code || '').toLowerCase().includes(searchVal);
+      const matchStatus = (t.status || '').toLowerCase().includes(searchVal);
+      const matchSvc = (s?.name || '').toLowerCase().includes(searchVal);
+      const matchCounter = (c?.name || '').toLowerCase().includes(searchVal);
+      return matchCode || matchStatus || matchSvc || matchCounter;
+    });
+  }
+
+  const orderColIdx = req.query.order && req.query.order[0] ? parseInt(req.query.order[0].column, 10) : 0;
+  const orderDir = req.query.order && req.query.order[0] && req.query.order[0].dir === 'desc' ? -1 : 1;
+
+  list.sort((a, b) => {
+    if (orderColIdx === 0) return ((a.id || 0) - (b.id || 0)) * orderDir;
+    if (orderColIdx === 1) return (a.code || '').localeCompare(b.code || '') * orderDir;
+    if (orderColIdx === 3) return (a.status || '').localeCompare(b.status || '') * orderDir;
+    return (new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()) * orderDir;
+  });
+
+  const recordsFiltered = list.length;
+  const paged = list.slice(start, start + length);
+
+  const data = paged.map((t) => {
+    const s = db.services.find((item) => item.id === t.service_id);
+    const c = db.counters.find((item) => item.id === t.counter_id);
+    return {
+      id: t.id,
+      code: t.code,
+      service: s ? s.name : '-',
+      counter: c ? c.name : '-',
+      status: t.status,
+      queue_date: t.queue_date,
+      created_at: t.created_at ? new Date(t.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
+      called_at: t.called_at ? new Date(t.called_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
+      finished_at: t.finished_at ? new Date(t.finished_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-',
+    };
+  });
+
+  res.json({
+    draw,
+    recordsTotal,
+    recordsFiltered,
+    data,
   });
 });
 

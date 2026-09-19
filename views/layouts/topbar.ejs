@@ -1,11 +1,107 @@
-<div class="topbar">
-    <a href="/admin/counters" class="<%= active === 'counters' ? 'active' : '' %>">Loket</a>
-    <a href="/admin/services" class="<%= active === 'services' ? 'active' : '' %>">Layanan</a>
-    <a href="/admin/display-settings" class="<%= active === 'display-settings' ? 'active' : '' %>">Pengaturan Display</a>
-    <a href="/admin/reports" class="<%= active === 'reports' ? 'active' : '' %>">Laporan</a>
-    <a href="/display" target="_blank">Layar Display</a>
-    <a href="/operator" target="_blank">Operator</a>
-    <form method="POST" action="/logout" style="margin-left:auto">
-        <button class="btn gray" style="padding:6px 12px">Logout</button>
-    </form>
-</div>
+<div class="admin-layout">
+    <!-- Backdrop untuk mobile screen -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- Sticky Sidebar -->
+    <aside class="admin-sidebar" id="adminSidebar">
+        <div class="admin-sidebar-header">
+            <div class="admin-sidebar-title">
+                <span style="font-size:22px">🎫</span>
+                <span>Antrian Sistem</span>
+            </div>
+            <button type="button" class="modal-close" id="btnCloseSidebar" style="display:none;font-size:22px" aria-label="Tutup Menu">&times;</button>
+        </div>
+
+        <nav class="admin-sidebar-nav">
+            <div class="nav-label">Manajemen Utama</div>
+            <a href="/admin/counters" class="admin-sidebar-link <%= active === 'counters' ? 'active' : '' %>">
+                <span style="font-size:16px">🏢</span>
+                <span>Kelola Loket</span>
+            </a>
+            <a href="/admin/services" class="admin-sidebar-link <%= active === 'services' ? 'active' : '' %>">
+                <span style="font-size:16px">📋</span>
+                <span>Kelola Layanan</span>
+            </a>
+            <a href="/admin/users" class="admin-sidebar-link <%= active === 'users' ? 'active' : '' %>">
+                <span style="font-size:16px">👥</span>
+                <span>Kelola Pengguna (User)</span>
+            </a>
+
+            <div class="nav-label" style="margin-top:14px">Pengaturan & Data</div>
+            <a href="/admin/display-settings" class="admin-sidebar-link <%= active === 'display-settings' ? 'active' : '' %>">
+                <span style="font-size:16px">📺</span>
+                <span>Pengaturan Display</span>
+            </a>
+            <a href="/admin/reports" class="admin-sidebar-link <%= active === 'reports' ? 'active' : '' %>">
+                <span style="font-size:16px">📊</span>
+                <span>Laporan Antrian</span>
+            </a>
+
+            <div class="nav-label" style="margin-top:14px">Akses Langsung</div>
+            <a href="/display" target="_blank" class="admin-sidebar-link">
+                <span style="font-size:16px">🖥️</span>
+                <span>Layar Display ↗</span>
+            </a>
+            <a href="/operator" target="_blank" class="admin-sidebar-link">
+                <span style="font-size:16px">🎧</span>
+                <span>Panel Operator ↗</span>
+            </a>
+            <a href="/kiosk" target="_blank" class="admin-sidebar-link">
+                <span style="font-size:16px">🎟️</span>
+                <span>Kios Tiket ↗</span>
+            </a>
+        </nav>
+
+        <div class="admin-sidebar-footer">
+            <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">
+                    <%= (typeof user !== 'undefined' && user && user.name) ? user.name.charAt(0).toUpperCase() : 'A' %>
+                </div>
+                <div style="flex:1;overflow:hidden">
+                    <div style="font-size:13px;font-weight:700;white-space:nowrap;text-overflow:ellipsis;overflow:hidden">
+                        <%= (typeof user !== 'undefined' && user && user.name) ? user.name : 'Administrator' %>
+                    </div>
+                    <div style="font-size:11px;color:var(--muted)">
+                        <%= (typeof user !== 'undefined' && user && user.role) ? user.role.toUpperCase() : 'ADMIN' %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Konten Utama dengan Sticky Topbar -->
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <button type="button" class="sidebar-toggle-btn" id="btnToggleSidebar" aria-label="Menu Navigasi">
+                    ☰
+                </button>
+                <div style="font-weight:700;font-size:15px;color:var(--text)">
+                    <% if (active === 'counters') { %>
+                        Kelola Loket
+                    <% } else if (active === 'services') { %>
+                        Kelola Layanan
+                    <% } else if (active === 'users') { %>
+                        Kelola Pengguna (User Management)
+                    <% } else if (active === 'display-settings') { %>
+                        Pengaturan Layar Display
+                    <% } else if (active === 'reports') { %>
+                        Laporan & Analitik Antrian
+                    <% } else { %>
+                        Panel Administrasi
+                    <% } %>
+                </div>
+            </div>
+
+            <div class="topbar-right">
+                <span class="pill" style="display:inline-flex;align-items:center;gap:6px">
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent)"></span>
+                    <span>Sistem Aktif</span>
+                </span>
+                <form method="POST" action="/logout" style="margin:0">
+                    <button class="btn gray" style="padding:6px 14px;font-size:13px">Logout</button>
+                </form>
+            </div>
+        </header>
+
+        <main style="flex:1">

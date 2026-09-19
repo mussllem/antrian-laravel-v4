@@ -2,74 +2,248 @@
 <%- include('../layouts/topbar', { active: 'counters' }) %>
 
 <div class="wrap">
-    <h1>Kelola Loket</h1>
-    <% if (typeof status !== 'undefined' && status) { %><div class="flash"><%= status %></div><% } %>
-
-    <div class="card">
-        <h3>Tambah Loket</h3>
-        <form method="POST" action="/admin/counters">
-            <div class="row">
-                <div class="col"><label>Nama Loket</label><input name="name" required placeholder="Loket 1"></div>
-                <div class="col"><label>Nomor</label><input name="number" type="number" min="1" required></div>
-                <div class="col"><label>Urutan</label><input name="sort_order" type="number" value="0"></div>
-            </div>
-            <label>Layanan yang ditangani (loket dinamis)</label>
-            <div class="row">
-                <% services.forEach(function(s) { %>
-                    <label style="display:flex;gap:6px;align-items:center;min-width:160px;color:var(--text)">
-                        <input type="checkbox" name="services" value="<%= s.id %>" style="width:auto"> <%= s.name %>
-                    </label>
-                <% }); %>
-            </div>
-            <label style="display:flex;gap:6px;align-items:center;margin-top:10px;color:var(--text)">
-                <input type="checkbox" name="is_active" value="1" checked style="width:auto"> Aktif
-            </label>
-            <button class="btn green" style="margin-top:12px">Simpan</button>
-        </form>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+        <h1 style="margin:0">Kelola Loket</h1>
+        <button type="button" class="btn green" id="btnOpenAddModal">
+            + Tambah Loket
+        </button>
     </div>
 
+    <div id="flashNotice" class="flash" style="display:none"></div>
+    <% if (typeof status !== 'undefined' && status) { %>
+        <div class="flash"><%= status %></div>
+    <% } %>
+
     <div class="card">
-        <h3>Daftar Loket</h3>
-        <table>
-            <thead><tr><th>Nama</th><th>No.</th><th>Layanan</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-            <% if (counters && counters.length > 0) { %>
-                <% counters.forEach(function(c) { %>
+        <div style="overflow-x:auto">
+            <table id="countersTable" class="dataTable display" style="width:100%">
+                <thead>
                     <tr>
-                        <td>
-                            <form method="POST" action="/admin/counters/<%= c.id %>?_method=PUT" id="cf<%= c.id %>">
-                                <input name="name" value="<%= c.name %>">
-                        </td>
-                        <td><input name="number" type="number" value="<%= c.number %>" style="width:70px"></td>
-                        <td>
-                            <% services.forEach(function(s) { %>
-                                <label style="display:inline-flex;gap:4px;align-items:center;margin-right:8px;font-size:12px;color:var(--text)">
-                                    <input type="checkbox" name="services" value="<%= s.id %>" style="width:auto"
-                                        <%= (c.services && c.services.includes(s.id)) ? 'checked' : '' %>> <%= s.prefix %>
-                                </label>
-                            <% }); %>
-                        </td>
-                        <td>
-                            <label style="display:flex;gap:4px;align-items:center;color:var(--text)">
-                                <input type="checkbox" name="is_active" value="1" style="width:auto" <%= c.is_active ? 'checked' : '' %>> Aktif
-                            </label>
-                        </td>
-                        <td style="white-space:nowrap">
-                                <button class="btn" style="padding:6px 10px">Update</button>
-                            </form>
-                            <form method="POST" action="/admin/counters/<%= c.id %>?_method=DELETE" style="display:inline"
-                                  onsubmit="return confirm('Hapus loket ini?')">
-                                <button class="btn red" style="padding:6px 10px">Hapus</button>
-                            </form>
-                        </td>
+                        <th>Nama Loket</th>
+                        <th style="width:70px">Nomor</th>
+                        <th>Layanan yang Ditangani</th>
+                        <th style="width:90px">Status</th>
+                        <th style="width:130px;text-align:right">Aksi</th>
                     </tr>
-                <% }); %>
-            <% } else { %>
-                <tr><td colspan="5">Belum ada loket.</td></tr>
-            <% } %>
-            </tbody>
-        </table>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-<%- include('../layouts/footer') %>
+<!-- Modal Form Loket (Tambah & Edit) -->
+<div class="modal-overlay" id="counterModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 id="modalTitle">Tambah Loket</h3>
+            <button type="button" class="modal-close" id="btnCloseModal" aria-label="Tutup">&times;</button>
+        </div>
+        <form id="counterForm">
+            <div class="modal-body">
+                <input type="hidden" name="counter_id" id="counter_id" value="">
+                
+                <div class="row">
+                    <div class="col">
+                        <label for="name">Nama Loket <span style="color:var(--danger)">*</span></label>
+                        <input name="name" id="name" required placeholder="Contoh: Loket 1">
+                    </div>
+                    <div class="col">
+                        <label for="number">Nomor Loket <span style="color:var(--danger)">*</span></label>
+                        <input name="number" id="number" type="number" min="1" required placeholder="1">
+                    </div>
+                </div>
+
+                <div style="margin-top:10px">
+                    <label for="sort_order">Urutan Tampilan</label>
+                    <input name="sort_order" id="sort_order" type="number" value="0">
+                </div>
+
+                <div style="margin-top:14px">
+                    <label style="margin-bottom:6px">Pilih Layanan (Loket Dinamis)</label>
+                    <div class="row" style="background:var(--input-bg);padding:10px;border-radius:8px;border:1px solid var(--border)">
+                        <% services.forEach(function(s) { %>
+                            <label style="display:flex;gap:6px;align-items:center;min-width:140px;color:var(--text);margin:4px 0;cursor:pointer">
+                                <input type="checkbox" name="services" value="<%= s.id %>" class="chk-service" style="width:auto"> 
+                                <span><b>[<%= s.prefix %>]</b> <%= s.name %></span>
+                            </label>
+                        <% }); %>
+                    </div>
+                </div>
+
+                <label style="display:flex;gap:8px;align-items:center;margin-top:14px;color:var(--text);cursor:pointer">
+                    <input type="checkbox" name="is_active" id="is_active" value="1" checked style="width:auto"> 
+                    <span>Status Aktif</span>
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn gray" id="btnCancelModal">Batal</button>
+                <button type="submit" class="btn green" id="btnSaveCounter">Simpan Loket</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        var modal = $('#counterModal');
+        var form = $('#counterForm');
+        var flashNotice = $('#flashNotice');
+
+        function showFlash(msg, isErr) {
+            flashNotice.text(msg).css('display', 'block');
+            if (isErr) {
+                flashNotice.css({'background':'#7f1d1d', 'border-color':'var(--danger)'});
+            } else {
+                flashNotice.css({'background':'var(--flash-bg)', 'border-color':'var(--accent)'});
+            }
+            setTimeout(function() { flashNotice.fadeOut(); }, 4000);
+        }
+
+        // Inisialisasi DataTable Server-Side
+        var table = $('#countersTable').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: '/admin/counters/dt',
+                type: 'GET'
+            },
+            language: {
+                search: "Cari:",
+                lengthMenu: "Tampilkan _MENU_ data",
+                info: "Menampilkan _START_ s/d _END_ dari _TOTAL_ loket",
+                infoEmpty: "Menampilkan 0 dari 0 loket",
+                zeroRecords: "Tidak ada data loket ditemukan",
+                paginate: {
+                    first: "Awal",
+                    last: "Akhir",
+                    next: "Lanjut",
+                    previous: "Sebelum"
+                },
+                processing: "Memuat data dari server..."
+            },
+            columns: [
+                { data: 'name' },
+                { data: 'number' },
+                { 
+                    data: 'assigned_services',
+                    orderable: false,
+                    render: function(services) {
+                        if (!services || services.length === 0) return '<span style="color:var(--muted)">-</span>';
+                        return services.map(function(s) {
+                            return '<span class="pill" style="margin-right:4px;background:var(--pill-bg)">' + 
+                                   '<b>' + s.prefix + '</b>: ' + s.name + '</span>';
+                        }).join(' ');
+                    }
+                },
+                { 
+                    data: 'is_active',
+                    render: function(val) {
+                        return val 
+                            ? '<span class="pill on">Aktif</span>' 
+                            : '<span class="pill off">Non-Aktif</span>';
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    className: 'text-right',
+                    render: function(data, type, row) {
+                        var jsonStr = encodeURIComponent(JSON.stringify(row));
+                        return '<button class="btn btn-edit" data-item="' + jsonStr + '" style="padding:5px 9px;font-size:12px;margin-right:4px">Edit</button>' +
+                               '<button class="btn red btn-delete" data-id="' + row.id + '" data-name="' + row.name + '" style="padding:5px 9px;font-size:12px">Hapus</button>';
+                    }
+                }
+            ]
+        });
+
+        // Buka Modal Tambah
+        $('#btnOpenAddModal').on('click', function() {
+            form[0].reset();
+            $('#counter_id').val('');
+            $('#modalTitle').text('Tambah Loket');
+            $('.chk-service').prop('checked', false);
+            $('#is_active').prop('checked', true);
+            modal.addClass('active');
+        });
+
+        // Buka Modal Edit
+        $('#countersTable').on('click', '.btn-edit', function() {
+            var raw = $(this).data('item');
+            var item = JSON.parse(decodeURIComponent(raw));
+            $('#counter_id').val(item.id);
+            $('#name').val(item.name);
+            $('#number').val(item.number);
+            $('#sort_order').val(item.sort_order || 0);
+            $('#is_active').prop('checked', !!item.is_active);
+
+            $('.chk-service').prop('checked', false);
+            if (item.services && Array.isArray(item.services)) {
+                item.services.forEach(function(sid) {
+                    $('.chk-service[value="' + sid + '"]').prop('checked', true);
+                });
+            }
+
+            $('#modalTitle').text('Edit ' + item.name);
+            modal.addClass('active');
+        });
+
+        // Tutup Modal
+        $('#btnCloseModal, #btnCancelModal').on('click', function() {
+            modal.removeClass('active');
+        });
+        modal.on('click', function(e) {
+            if (e.target === this) modal.removeClass('active');
+        });
+
+        // Submit Form via AJAX
+        form.on('submit', function(e) {
+            e.preventDefault();
+            var id = $('#counter_id').val();
+            var isEdit = !!id;
+            var url = isEdit ? ('/admin/counters/' + id + '?_method=PUT') : '/admin/counters';
+            var formData = form.serialize();
+
+            $('#btnSaveCounter').prop('disabled', true).text('Menyimpan...');
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: formData,
+                dataType: 'json',
+                success: function(res) {
+                    $('#btnSaveCounter').prop('disabled', false).text('Simpan Loket');
+                    modal.removeClass('active');
+                    showFlash(res.message || 'Loket berhasil disimpan!');
+                    table.ajax.reload(null, false);
+                },
+                error: function(err) {
+                    $('#btnSaveCounter').prop('disabled', false).text('Simpan Loket');
+                    showFlash('Gagal menyimpan loket: ' + (err.responseJSON?.message || 'Terjadi kesalahan server'), true);
+                }
+            });
+        });
+
+        // Hapus Loket via AJAX
+        $('#countersTable').on('click', '.btn-delete', function() {
+            var id = $(this).data('id');
+            var name = $(this).data('name');
+            if (!confirm('Hapus ' + name + '?')) return;
+
+            $.ajax({
+                url: '/admin/counters/' + id + '?_method=DELETE',
+                type: 'POST',
+                dataType: 'json',
+                success: function(res) {
+                    showFlash(res.message || 'Loket berhasil dihapus!');
+                    table.ajax.reload(null, false);
+                },
+                error: function() {
+                    showFlash('Gagal menghapus loket.', true);
+                }
+            });
+        });
+    });
+</script>
+
+<%- include('../layouts/admin_footer') %>
