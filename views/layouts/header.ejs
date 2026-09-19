@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="simulated-csrf-token">
+    <title><%= typeof title !== 'undefined' && title ? title : 'Sistem Antrian' %></title>
+    <script>
+        // Terapkan tema SEBELUM render agar tidak ada kedipan (FOUC).
+        (function(){
+            try {
+                var t = localStorage.getItem('theme');
+                if (!t) {
+                    t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+                        ? 'light' : 'dark';
+                }
+                document.documentElement.setAttribute('data-theme', t);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+    <style>
+        /* ===== Tema gelap (default) ===== */
+        :root, [data-theme="dark"]{
+            --bg:#0f172a; --card:#1e293b; --accent:#22c55e; --accent2:#3b82f6;
+            --text:#e2e8f0; --muted:#94a3b8; --danger:#ef4444; --warn:#f59e0b;
+            --topbar-bg:#0b1220; --border:#334155; --input-bg:#0b1220;
+            --flash-bg:#064e3b; --pill-bg:#334155; --pill-on:#065f46; --pill-off:#7f1d1d;
+            --highlight:#065f46; --gray-btn:#475569; --overlay:rgba(0,0,0,.85);
+        }
+        /* ===== Tema terang ===== */
+        [data-theme="light"]{
+            --bg:#f1f5f9; --card:#ffffff; --accent:#16a34a; --accent2:#2563eb;
+            --text:#0f172a; --muted:#64748b; --danger:#dc2626; --warn:#d97706;
+            --topbar-bg:#ffffff; --border:#e2e8f0; --input-bg:#ffffff;
+            --flash-bg:#dcfce7; --pill-bg:#e2e8f0; --pill-on:#bbf7d0; --pill-off:#fecaca;
+            --highlight:#bbf7d0; --gray-btn:#64748b; --overlay:rgba(15,23,42,.75);
+        }
+        *{box-sizing:border-box}
+        body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);transition:background .2s,color .2s}
+        a{color:var(--accent2);text-decoration:none}
+        .wrap{max-width:1100px;margin:0 auto;padding:20px}
+        .topbar{display:flex;gap:16px;align-items:center;padding:14px 20px;background:var(--topbar-bg);border-bottom:1px solid var(--border)}
+        .topbar a{color:var(--muted);font-weight:600}
+        .topbar a.active{color:var(--text)}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px}
+        .btn{display:inline-block;border:0;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer;color:#fff;background:var(--accent2)}
+        .btn.green{background:var(--accent)} .btn.red{background:var(--danger)}
+        .btn.warn{background:var(--warn);color:#1f2937} .btn.gray{background:var(--gray-btn)}
+        .btn:disabled{opacity:.5;cursor:not-allowed}
+        table{width:100%;border-collapse:collapse}
+        th,td{text-align:left;padding:10px;border-bottom:1px solid var(--border);font-size:14px}
+        input,select{width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text)}
+        label{display:block;font-size:13px;color:var(--muted);margin:8px 0 4px}
+        .row{display:flex;gap:12px;flex-wrap:wrap}
+        .col{flex:1;min-width:160px}
+        .flash{background:var(--flash-bg);border:1px solid var(--accent);padding:10px 14px;border-radius:10px;margin-bottom:14px}
+        .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;background:var(--pill-bg)}
+        .pill.on{background:var(--pill-on)} .pill.off{background:var(--pill-off)}
+        /* Tombol pilih tema (melayang, ada di semua halaman) */
+        .theme-toggle{
+            position:fixed;right:16px;bottom:16px;z-index:120;
+            width:46px;height:46px;border-radius:50%;border:1px solid var(--border);
+            background:var(--card);color:var(--text);cursor:pointer;
+            font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;
+            box-shadow:0 4px 14px rgba(0,0,0,.25);transition:transform .15s}
+        .theme-toggle:hover{transform:scale(1.08)}
+    </style>
+    <%- typeof extraHead !== 'undefined' ? extraHead : '' %>
+</head>
+<body>

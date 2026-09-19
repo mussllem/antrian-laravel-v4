@@ -1,0 +1,34 @@
+<%- include('../layouts/header', { title: 'Login' }) %>
+
+<div class="wrap" style="max-width:420px;margin-top:8vh">
+    <h1 style="text-align:center">Login Petugas & Admin</h1>
+
+    <div class="card">
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="flash" style="background:var(--pill-off);border-color:var(--danger)">
+                <%= error %>
+            </div>
+        <% } %>
+
+        <form method="POST" action="/login">
+            <label>Email</label>
+            <input type="email" name="email" value="<%= typeof email !== 'undefined' ? email : '' %>" required autofocus>
+
+            <label>Kata Sandi</label>
+            <input type="password" name="password" required>
+
+            <label style="display:flex;gap:6px;align-items:center;margin-top:12px;color:var(--text)">
+                <input type="checkbox" name="remember" value="1" style="width:auto"> Ingat saya
+            </label>
+
+            <button class="btn green" style="width:100%;margin-top:16px">Masuk</button>
+        </form>
+
+        <div style="color:var(--muted);font-size:13px;margin-top:16px;text-align:center;line-height:1.6">
+            <div>Admin: <b>admin@antrian.test</b> / <b>password</b></div>
+            <div>Operator: <b>operator1@antrian.test</b> / <b>password</b></div>
+        </div>
+    </div>
+</div>
+
+<%- include('../layouts/footer') %>

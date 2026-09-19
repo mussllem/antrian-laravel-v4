@@ -1,0 +1,57 @@
+<%- include('../layouts/header', { title: 'Admin — Pengaturan Display' }) %>
+<%- include('../layouts/topbar', { active: 'display-settings' }) %>
+
+<div class="wrap">
+    <h1>Pengaturan Layar Display</h1>
+    <% if (typeof status !== 'undefined' && status) { %><div class="flash"><%= status %></div><% } %>
+    <% if (typeof error !== 'undefined' && error) { %><div class="flash" style="border-color:var(--danger)"><%= error %></div><% } %>
+
+    <div class="card">
+        <form method="POST" action="/admin/display-settings?_method=PUT" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col">
+                    <label>Nama Perusahaan</label>
+                    <input name="company_name" required maxlength="100" value="<%= settings.company_name %>">
+                </div>
+                <div class="col">
+                    <label>Tagline</label>
+                    <input name="tagline" maxlength="150" value="<%= settings.tagline %>">
+                </div>
+            </div>
+
+            <label>Running Text</label>
+            <textarea name="running_text" required maxlength="500" rows="4" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font:inherit"><%= settings.running_text %></textarea>
+
+            <hr style="border:0;border-top:1px solid var(--border);margin:24px 0">
+            <h3>Video Panel Display</h3>
+            <p style="color:var(--muted)">Unggah MP4/WebM/Ogg (maks. 100 MB), atau masukkan URL video langsung. File unggahan diprioritaskan.</p>
+
+            <div class="row">
+                <div class="col">
+                    <label>Upload Video</label>
+                    <input type="file" name="video_file" accept="video/mp4,video/webm,video/ogg">
+                </div>
+                <div class="col">
+                    <label>URL Video</label>
+                    <input type="url" name="video_url" value="<%= settings.video_url || '' %>" placeholder="https://contoh.com/video.mp4">
+                </div>
+            </div>
+
+            <% if (settings.video_source) { %>
+                <div style="margin-top:16px">
+                    <label>Video saat ini</label>
+                    <video controls muted style="display:block;max-width:440px;width:100%;max-height:240px;background:#000">
+                        <source src="<%= settings.video_source %>">
+                    </video>
+                    <label style="display:flex;gap:6px;align-items:center;color:var(--text);margin-top:8px">
+                        <input type="checkbox" name="remove_video" value="1" style="width:auto"> Hapus video saat ini
+                    </label>
+                </div>
+            <% } %>
+
+            <button class="btn green" style="margin-top:20px">Simpan Pengaturan</button>
+        </form>
+    </div>
+</div>
+
+<%- include('../layouts/footer') %>

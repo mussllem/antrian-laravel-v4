@@ -1,0 +1,68 @@
+<%- include('../layouts/header', { title: 'Pilih Loket' }) %>
+
+<div class="wrap">
+    <div class="row" style="justify-content:space-between;align-items:center">
+        <h1>Pilih Loket Anda</h1>
+        <form method="POST" action="/logout">
+            <span class="pill"><%= user ? user.name : 'Operator' %></span>
+            <% if (user && user.role === 'admin') { %>
+                <a href="/admin/counters" class="pill" style="margin-left:4px">Admin Panel</a>
+            <% } %>
+            <a href="/display" target="_blank" class="pill" style="margin-left:4px">Display ↗</a>
+            <button class="btn gray" style="padding:6px 12px;margin-left:6px">Logout</button>
+        </form>
+    </div>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+        <div class="flash" style="background:var(--pill-off);border-color:var(--danger)">
+            <%= error %>
+        </div>
+    <% } %>
+    <% if (typeof status !== 'undefined' && status) { %>
+        <div class="flash"><%= status %></div>
+    <% } %>
+
+    <% if (myCounter) { %>
+        <div class="card" style="border-color:var(--accent)">
+            Anda sedang menempati <b><%= myCounter.name %></b>.
+            <a class="btn green" href="/operator/<%= myCounter.id %>" style="padding:6px 12px;margin-left:8px">Lanjut ke Panel</a>
+            <form method="POST" action="/operator/<%= myCounter.id %>/release" style="display:inline">
+                <button class="btn red" style="padding:6px 12px">Lepas Loket</button>
+            </form>
+        </div>
+    <% } %>
+
+    <div class="row">
+        <% if (counters && counters.length > 0) { %>
+            <% counters.forEach(function(counter) { %>
+                <% 
+                    const mine = user && counter.occupied_by === user.id;
+                    const byOther = counter.occupied_by !== null && !mine;
+                %>
+                <div class="card" style="min-width:220px;margin:8px;text-align:center <%= byOther ? ';opacity:.6' : '' %>">
+                    <div style="font-size:18px;font-weight:700"><%= counter.name %></div>
+                    <div class="muted" style="color:var(--muted)">Nomor <%= counter.number %></div>
+
+                    <% if (byOther) { %>
+                        <div class="pill off" style="margin:10px 0">
+                            Dipakai: <%= counter.occupant_name || 'operator lain' %>
+                        </div>
+                        <button class="btn gray" disabled style="width:100%">Tidak tersedia</button>
+                    <% } else if (mine) { %>
+                        <div class="pill on" style="margin:10px 0">Loket Anda</div>
+                        <a class="btn green" href="/operator/<%= counter.id %>" style="width:100%">Buka Panel</a>
+                    <% } else { %>
+                        <div class="pill on" style="margin:10px 0">Tersedia</div>
+                        <form method="POST" action="/operator/<%= counter.id %>/claim">
+                            <button class="btn" style="width:100%">Pilih Loket Ini</button>
+                        </form>
+                    <% } %>
+                </div>
+            <% }); %>
+        <% } else { %>
+            <p>Belum ada loket aktif. Silakan buat di panel admin.</p>
+        <% } %>
+    </div>
+</div>
+
+<%- include('../layouts/footer') %>

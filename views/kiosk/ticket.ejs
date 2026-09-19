@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tiket <%= ticket.code %></title>
+    <style>
+        /* Ukuran struk termal 80mm (ubah ke 58mm bila perlu) */
+        @page { size: 80mm auto; margin: 0; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            width: 80mm; margin: 0 auto; padding: 8px 10px;
+            color: #000; background: #fff;
+        }
+        .center { text-align: center; }
+        .title { font-size: 15px; font-weight: 700; margin: 4px 0; }
+        .muted { color: #333; font-size: 12px; }
+        .code {
+            font-size: 64px; font-weight: 800; letter-spacing: 2px;
+            margin: 10px 0; line-height: 1;
+        }
+        .service { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+        hr { border: none; border-top: 1px dashed #000; margin: 10px 0; }
+        .row { display: flex; justify-content: space-between; font-size: 12px; margin: 2px 0; }
+        .foot { font-size: 11px; margin-top: 10px; }
+        .btns { margin-top: 16px; }
+        button {
+            padding: 10px 16px; font-size: 14px; font-weight: 700;
+            border: 1px solid #000; background: #fff; cursor: pointer; border-radius: 6px;
+        }
+        @media print { .btns { display: none; } }
+    </style>
+</head>
+<body onload="window.print()">
+    <div class="center">
+        <div class="title"><%= appName || 'SISTEM ANTRIAN' %></div>
+        <div class="muted">Nomor Antrian Anda</div>
+        <div class="code"><%= ticket.code %></div>
+        <div class="service"><%= ticket.service_name || (ticket.service ? ticket.service.name : '') %></div>
+    </div>
+
+    <hr>
+
+    <div class="row"><span>Tanggal</span><span><%= formattedDate %></span></div>
+    <div class="row"><span>Jam</span><span><%= formattedTime %></span></div>
+    <div class="row"><span>Antre di depan</span><span><%= ahead %> orang</span></div>
+
+    <hr>
+
+    <div class="center foot">
+        Mohon menunggu nomor Anda dipanggil.<br>
+        Terima kasih atas kesabaran Anda.
+    </div>
+
+    <div class="center btns">
+        <button onclick="window.print()">Cetak Ulang</button>
+        <button onclick="window.close()">Tutup</button>
+    </div>
+</body>
+</html>

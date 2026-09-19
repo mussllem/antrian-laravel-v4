@@ -1,0 +1,6 @@
+{
+  "name": "Antrian",
+  "description": "A queue management system with kiosk ticket taking, operator call desk, and digital screen display.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

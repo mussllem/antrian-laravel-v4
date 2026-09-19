@@ -1,0 +1,116 @@
+<%- include('../layouts/header', { title: 'Admin — Laporan' }) %>
+<%- include('../layouts/topbar', { active: 'reports' }) %>
+
+<div class="wrap">
+    <h1>Laporan Antrian</h1>
+
+    <div class="card">
+        <form method="GET" action="/admin/reports">
+            <div class="row" style="align-items:flex-end">
+                <div class="col"><label>Dari tanggal</label>
+                    <input type="date" name="from" value="<%= from %>"></div>
+                <div class="col"><label>Sampai tanggal</label>
+                    <input type="date" name="to" value="<%= to %>"></div>
+                <div class="col" style="max-width:160px">
+                    <button class="btn" style="width:100%">Tampilkan</button>
+                </div>
+                <div class="col" style="max-width:200px">
+                    <a class="btn green" style="width:100%;text-align:center"
+                       href="/admin/reports/export?from=<%= from %>&to=<%= to %>">Ekspor CSV</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="row">
+        <% 
+            const cards = [
+                ['Total Tiket', summary.total, 'var(--accent2)'],
+                ['Selesai', summary.done, 'var(--accent)'],
+                ['Dilewati', summary.skipped, 'var(--warn)'],
+                ['Menunggu', summary.waiting, '#64748b'],
+                ['Sedang dilayani', summary.serving, '#a855f7'],
+            ];
+        %>
+        <% cards.forEach(function([label, val, color]) { %>
+            <div class="card" style="flex:1;min-width:150px;text-align:center">
+                <div style="color:var(--muted);font-size:13px"><%= label %></div>
+                <div style="font-size:34px;font-weight:800;color:<%= color %>">
+                    <%= Number(val || 0).toLocaleString('id-ID') %>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+
+    <% if (avgServeMinutes !== null) { %>
+        <div class="card">
+            Rata-rata waktu layanan (tiket selesai):
+            <b><%= Number(avgServeMinutes).toFixed(1) %> menit</b>
+        </div>
+    <% } %>
+
+    <div class="row">
+        <div class="card" style="flex:1;min-width:320px">
+            <h3>Per Layanan</h3>
+            <table>
+                <thead><tr><th>Layanan</th><th style="text-align:right">Total</th><th style="text-align:right">Selesai</th><th style="text-align:right">Dilewati</th></tr></thead>
+                <tbody>
+                <% if (perService && perService.length > 0) { %>
+                    <% perService.forEach(function(r) { %>
+                        <tr>
+                            <td><%= r.service %></td>
+                            <td style="text-align:right"><%= Number(r.total || 0).toLocaleString('id-ID') %></td>
+                            <td style="text-align:right"><%= Number(r.done || 0).toLocaleString('id-ID') %></td>
+                            <td style="text-align:right"><%= Number(r.skipped || 0).toLocaleString('id-ID') %></td>
+                        </tr>
+                    <% }); %>
+                <% } else { %>
+                    <tr><td colspan="4">Tidak ada data.</td></tr>
+                <% } %>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card" style="flex:1;min-width:320px">
+            <h3>Per Loket</h3>
+            <table>
+                <thead><tr><th>Loket</th><th style="text-align:right">Total</th><th style="text-align:right">Selesai</th></tr></thead>
+                <tbody>
+                <% if (perCounter && perCounter.length > 0) { %>
+                    <% perCounter.forEach(function(r) { %>
+                        <tr>
+                            <td><%= r.counter %></td>
+                            <td style="text-align:right"><%= Number(r.total || 0).toLocaleString('id-ID') %></td>
+                            <td style="text-align:right"><%= Number(r.done || 0).toLocaleString('id-ID') %></td>
+                        </tr>
+                    <% }); %>
+                <% } else { %>
+                    <tr><td colspan="3">Tidak ada data.</td></tr>
+                <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Tren Harian</h3>
+        <table>
+            <thead><tr><th>Tanggal</th><th style="text-align:right">Total</th><th style="text-align:right">Selesai</th></tr></thead>
+            <tbody>
+            <% if (daily && daily.length > 0) { %>
+                <% daily.forEach(function(d) { %>
+                    <tr>
+                        <td><%= d.queue_date %></td>
+                        <td style="text-align:right"><%= Number(d.total || 0).toLocaleString('id-ID') %></td>
+                        <td style="text-align:right"><%= Number(d.done || 0).toLocaleString('id-ID') %></td>
+                    </tr>
+                <% }); %>
+            <% } else { %>
+                <tr><td colspan="3">Tidak ada data pada rentang ini.</td></tr>
+            <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<%- include('../layouts/footer') %>

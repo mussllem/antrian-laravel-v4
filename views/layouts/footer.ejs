@@ -1,0 +1,24 @@
+    <button type="button" class="theme-toggle" id="themeToggle"
+            title="Ganti mode terang/gelap" aria-label="Ganti mode terang/gelap">🌙</button>
+    <script>
+        (function(){
+            var btn = document.getElementById('themeToggle');
+            function icon(t){ return t === 'light' ? '🌙' : '☀️'; } // ikon = mode yang dituju
+            function apply(t){
+                document.documentElement.setAttribute('data-theme', t);
+                try { localStorage.setItem('theme', t); } catch(e){}
+                if (btn) btn.textContent = icon(t);
+            }
+            // set ikon awal sesuai tema aktif
+            if (btn){
+                btn.textContent = icon(document.documentElement.getAttribute('data-theme'));
+                btn.addEventListener('click', function(){
+                    var cur = document.documentElement.getAttribute('data-theme');
+                    apply(cur === 'light' ? 'dark' : 'light');
+                });
+            }
+        })();
+    </script>
+    <%- typeof extraScripts !== 'undefined' ? extraScripts : '' %>
+</body>
+</html>

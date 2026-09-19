@@ -1,0 +1,11 @@
+<div class="topbar">
+    <a href="/admin/counters" class="<%= active === 'counters' ? 'active' : '' %>">Loket</a>
+    <a href="/admin/services" class="<%= active === 'services' ? 'active' : '' %>">Layanan</a>
+    <a href="/admin/display-settings" class="<%= active === 'display-settings' ? 'active' : '' %>">Pengaturan Display</a>
+    <a href="/admin/reports" class="<%= active === 'reports' ? 'active' : '' %>">Laporan</a>
+    <a href="/display" target="_blank">Layar Display</a>
+    <a href="/operator" target="_blank">Operator</a>
+    <form method="POST" action="/logout" style="margin-left:auto">
+        <button class="btn gray" style="padding:6px 12px">Logout</button>
+    </form>
+</div>

@@ -1,0 +1,70 @@
+<%- include('../layouts/header', { title: 'Ambil Nomor Antrian' }) %>
+
+<div class="wrap">
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:12px">
+        <a href="/display" target="_blank" class="pill">Layar Display ↗</a>
+        <a href="/operator" target="_blank" class="pill">Operator Loket ↗</a>
+        <a href="/admin/counters" target="_blank" class="pill">Admin ↗</a>
+    </div>
+
+    <h1 style="text-align:center">Ambil Nomor Antrian</h1>
+    <p style="text-align:center;color:var(--muted)">Silakan pilih layanan yang Anda butuhkan</p>
+
+    <div class="row" style="justify-content:center">
+        <% if (services && services.length > 0) { %>
+            <% services.forEach(function(service) { %>
+                <button class="btn green take" data-id="<%= service.id %>"
+                        style="min-width:220px;padding:28px;font-size:20px;margin:8px">
+                    <%= service.name %>
+                    <div style="font-size:13px;font-weight:400;opacity:.85;margin-top:6px">
+                        <%= service.description %>
+                    </div>
+                </button>
+            <% }); %>
+        <% } else { %>
+            <p>Belum ada layanan aktif. Silakan hubungi admin.</p>
+        <% } %>
+    </div>
+
+    <div id="result" class="card" style="display:none;text-align:center;margin-top:24px">
+        <div style="color:var(--muted)">Nomor antrian Anda</div>
+        <div id="result-code" style="font-size:72px;font-weight:800;color:var(--accent)"></div>
+        <div id="result-service" style="font-size:18px"></div>
+        <div id="result-ahead" style="color:var(--muted);margin-top:8px"></div>
+        <div style="margin-top:12px;font-size:13px;color:var(--muted)">Simpan / cetak nomor ini. Layar akan tertutup otomatis.</div>
+    </div>
+</div>
+
+<%- include('../layouts/footer', {
+    extraScripts: `
+    <script>
+    document.querySelectorAll('.take').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            try {
+                const res = await fetch('/kiosk/take', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','Accept':'application/json'},
+                    body: JSON.stringify({ service_id: btn.dataset.id }),
+                });
+                const data = await res.json();
+                document.getElementById('result-code').textContent = data.code;
+                document.getElementById('result-service').textContent = data.service;
+                document.getElementById('result-ahead').textContent =
+                    data.ahead > 0 ? (data.ahead + ' orang menunggu sebelum Anda') : 'Tidak ada antrian di depan Anda';
+                document.getElementById('result').style.display = 'block';
+                // Buka struk tiket di jendela baru untuk dicetak (printer termal).
+                if (data.print_url) {
+                    window.open(data.print_url, 'cetak-tiket', 'width=380,height=560');
+                }
+                setTimeout(() => { document.getElementById('result').style.display='none'; }, 8000);
+            } catch (e) {
+                alert('Gagal mengambil nomor. Coba lagi.');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    });
+    </script>
+    `
+}) %>
